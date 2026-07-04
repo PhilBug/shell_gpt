@@ -23,6 +23,9 @@ DEFAULT_CONFIG = {
     "CACHE_LENGTH": int(os.getenv("CHAT_CACHE_LENGTH", "100")),
     "REQUEST_TIMEOUT": int(os.getenv("REQUEST_TIMEOUT", "60")),
     "DEFAULT_MODEL": os.getenv("DEFAULT_MODEL", "gpt-5.4-mini"),
+    "PROVIDER": os.getenv("PROVIDER", "openai"),
+    "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", ""),
+    "ANTHROPIC_MAX_TOKENS": os.getenv("ANTHROPIC_MAX_TOKENS", "4096"),
     "DEFAULT_TEMPERATURE": os.getenv("DEFAULT_TEMPERATURE", 0.0),
     "DEFAULT_COLOR": os.getenv("DEFAULT_COLOR", "magenta"),
     "ROLE_STORAGE_PATH": os.getenv("ROLE_STORAGE_PATH", str(ROLE_STORAGE_PATH)),
@@ -61,10 +64,20 @@ class Config(dict):  # type: ignore
                 self._write()
         else:
             config_path.parent.mkdir(parents=True, exist_ok=True)
-            # Don't write API key to config file if it is in the environment.
-            if not defaults.get("OPENAI_API_KEY") and not os.getenv("OPENAI_API_KEY"):
-                __api_key = getpass(prompt="Please enter your OpenAI API key: ")
-                defaults["OPENAI_API_KEY"] = __api_key
+            provider = defaults.get("PROVIDER", "openai")
+            if provider == "anthropic":
+                if not defaults.get("ANTHROPIC_API_KEY") and not os.getenv(
+                    "ANTHROPIC_API_KEY"
+                ):
+                    __api_key = getpass(prompt="Please enter your Anthropic API key: ")
+                    defaults["ANTHROPIC_API_KEY"] = __api_key
+            else:
+                # Don't write API key to config file if it is in the environment.
+                if not defaults.get("OPENAI_API_KEY") and not os.getenv(
+                    "OPENAI_API_KEY"
+                ):
+                    __api_key = getpass(prompt="Please enter your OpenAI API key: ")
+                    defaults["OPENAI_API_KEY"] = __api_key
             super().__init__(**defaults)
             self._write()
 
