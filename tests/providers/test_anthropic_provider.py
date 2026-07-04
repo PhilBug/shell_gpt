@@ -1,8 +1,5 @@
-import json
 from typing import Any, Dict, List
 from unittest.mock import MagicMock
-
-import pytest
 
 from sgpt.providers.anthropic_provider import AnthropicProvider
 from sgpt.providers.base import ToolCallDelta

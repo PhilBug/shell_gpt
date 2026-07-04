@@ -1,11 +1,10 @@
 from typing import Any, Dict, List
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from typer.testing import CliRunner
 
 from sgpt import config, main
-from sgpt.role import DefaultRoles, SystemRole
 from sgpt.providers.anthropic_provider import AnthropicProvider
 
 import typer

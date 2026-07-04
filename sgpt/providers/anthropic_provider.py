@@ -1,8 +1,6 @@
 import json
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
-from click import UsageError
-
 from ..config import cfg
 from .base import ToolCallDelta
 

@@ -1,7 +1,5 @@
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
-from click import UsageError
-
 from ..config import cfg
 from .base import ToolCallDelta
 
@@ -73,7 +71,6 @@ class OpenAIProvider:
         tool_call_id = ""
         name = ""
         arguments = ""
-        saw_tool_call = False
 
         for chunk in response:
             if not chunk.choices:
@@ -83,7 +80,6 @@ class OpenAIProvider:
             # LiteLLM uses dict instead of Pydantic object like OpenAI does.
             tool_calls = delta.get("tool_calls") if use_litellm else delta.tool_calls
             if tool_calls:
-                saw_tool_call = True
                 for tool_call in tool_calls:
                     if use_litellm:
                         tool_call_id = tool_call.get("id") or tool_call_id
