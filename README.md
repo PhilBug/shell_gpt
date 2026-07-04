@@ -409,6 +409,12 @@ PROVIDER=openai
 # Anthropic API key (also settable via ANTHROPIC_API_KEY env).
 ANTHROPIC_API_KEY=
 # Max output tokens per request when using the Anthropic provider.
+# Anthropic requires this (the API rejects requests without it), so 4096
+# is a safe default. OpenAI omits max_tokens and uses the server default
+# (effectively the model's full output window) — see "Max output tokens"
+# below. To make Anthropic behave as close to "unlimited" as possible,
+# set this to your model's max output: e.g. 128000 for Sonnet/Opus, 64000
+# for Haiku. See https://platform.claude.com/docs/en/about-claude/models/overview
 ANTHROPIC_MAX_TOKENS=4096
 # Control how markdown live rendering handles overflow when output exceeds terminal height.
 # Possible values: ellipsis, visible, crop
@@ -417,6 +423,28 @@ MARKDOWN_LIVE_VERTICAL_OVERFLOW=ellipsis
 Possible options for `DEFAULT_COLOR`: black, red, green, yellow, blue, magenta, cyan, white, bright_black, bright_red, bright_green, bright_yellow, bright_blue, bright_magenta, bright_cyan, bright_white.
 Possible options for `CODE_THEME`: https://pygments.org/styles/
 Possible options for `MARKDOWN_LIVE_VERTICAL_OVERFLOW`: `ellipsis`, `visible`, `crop`.
+
+#### Max output tokens: OpenAI vs Anthropic
+
+The two providers are **not** symmetric here, by design — and it's driven by the upstream APIs:
+
+- **OpenAI** (`PROVIDER=openai`): ShellGPT **omits** `max_tokens`, so OpenAI uses its server default, which is effectively the model's full available output window. There is no ShellGPT config key for it, and there never was. Long completions (large code/markdown) are never truncated by a client-side cap.
+- **Anthropic** (`PROVIDER=anthropic`): the Messages API **requires** `max_tokens` on every request (it returns HTTP 400 if omitted), so ShellGPT must send a concrete number. `ANTHROPIC_MAX_TOKENS` defaults to `4096` — a conservative cap that is safe but will truncate answers longer than ~4K tokens.
+
+To get the closest thing to "unlimited" on Anthropic, set `ANTHROPIC_MAX_TOKENS` to your model's maximum output. Current ceilings on the Anthropic API:
+
+| Model family | Max output tokens |
+| --- | --- |
+| Claude Sonnet 5 / Sonnet 4.5–4.6 / Opus 4.5–4.8 / Fable 5 | `128000` |
+| Claude Haiku 4.5 | `64000` |
+
+Example for near-unlimited output with Sonnet 4.5 (`claude-sonnet-4-5-20250929`):
+
+```shell
+export ANTHROPIC_MAX_TOKENS=128000
+```
+
+Source: [Anthropic — Models overview](https://platform.claude.com/docs/en/about-claude/models/overview).
 
 ### Configuration Examples
 
