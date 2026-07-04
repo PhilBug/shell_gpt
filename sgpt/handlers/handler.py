@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional, cast
+from typing import Any, Dict, Generator, List, Optional, cast
 
 from rich.live_render import VerticalOverflowMethod
 
@@ -8,29 +8,11 @@ from ..cache import Cache
 from ..config import cfg
 from ..function import get_function
 from ..printer import MarkdownPrinter, Printer, TextPrinter
+from ..providers import get_provider
 from ..role import DefaultRoles, SystemRole
 
-completion: Callable[..., Any] = lambda *args, **kwargs: Generator[Any, None, None]
-
-base_url = cfg.get("API_BASE_URL")
-use_litellm = cfg.get("USE_LITELLM") == "true"
-additional_kwargs = {
-    "timeout": int(cfg.get("REQUEST_TIMEOUT")),
-    "api_key": cfg.get("OPENAI_API_KEY"),
-    "base_url": None if base_url == "default" else base_url,
-}
-
-if use_litellm:
-    import litellm  # type: ignore
-
-    completion = litellm.completion
-    litellm.suppress_debug_info = True
-else:
-    from openai import OpenAI
-
-    client = OpenAI(**additional_kwargs)  # type: ignore
-    completion = client.chat.completions.create
-    additional_kwargs = {}
+provider = get_provider(cfg.get("PROVIDER"))
+completion = provider.get_completion
 
 
 class Handler:
@@ -68,19 +50,9 @@ class Handler:
         name: str,
         arguments: str,
     ) -> Generator[str, None, None]:
-        # Add assistant message with tool call
+        # Add assistant message with tool call (provider-rendered).
         messages.append(
-            {
-                "role": "assistant",
-                "content": None,
-                "tool_calls": [
-                    {
-                        "id": tool_call_id,
-                        "type": "function",
-                        "function": {"name": name, "arguments": arguments},
-                    }
-                ],
-            }
+            provider.render_tool_call_assistant(tool_call_id, name, arguments)
         )
 
         if messages and messages[-1]["role"] == "assistant":
@@ -94,10 +66,8 @@ class Handler:
         if cfg.get("SHOW_FUNCTIONS_OUTPUT") == "true":
             yield f"```text\n{result}\n```\n"
 
-        # Add tool response message
-        messages.append(
-            {"role": "tool", "content": result, "tool_call_id": tool_call_id}
-        )
+        # Add tool response message (provider-rendered).
+        messages.append(provider.render_tool_result(tool_call_id, result))
 
     @cache
     def get_completion(
@@ -115,46 +85,24 @@ class Handler:
         if is_shell_role or is_code_role or is_dsc_shell_role:
             functions = None
 
-        if functions:
-            additional_kwargs["tool_choice"] = "auto"
-            additional_kwargs["tools"] = functions
-            additional_kwargs["parallel_tool_calls"] = False
-
         response = completion(
             model=model,
             temperature=temperature,
             top_p=top_p,
             messages=messages,
-            stream=True,
-            **additional_kwargs,
+            functions=functions,
         )
 
         try:
-            for chunk in response:
-                if not chunk.choices:
-                    continue
-                delta = chunk.choices[0].delta
-
-                # LiteLLM uses dict instead of Pydantic object like OpenAI does.
-                tool_calls = (
-                    delta.get("tool_calls") if use_litellm else delta.tool_calls
-                )
-                if tool_calls:
-                    for tool_call in tool_calls:
-                        if use_litellm:
-                            # TODO: test.
-                            tool_call_id = tool_call.get("id") or tool_call_id
-                            name = tool_call.get("function", {}).get("name") or name
-                            arguments += tool_call.get("function", {}).get(
-                                "arguments", ""
-                            )
-                        else:
-                            tool_call_id = tool_call.id or tool_call_id
-                            name = tool_call.function.name or name
-                            arguments += tool_call.function.arguments or ""
-                if chunk.choices[0].finish_reason == "tool_calls":
+            for text, tool_delta in provider.parse_stream(response):
+                if text:
+                    yield text
+                if tool_delta and tool_delta.finish:
                     yield from self.handle_function_call(
-                        messages, tool_call_id, name, arguments
+                        messages,
+                        tool_delta.id,
+                        tool_delta.name,
+                        tool_delta.arguments_json,
                     )
                     yield from self.get_completion(
                         model=model,
@@ -165,10 +113,9 @@ class Handler:
                         caching=False,
                     )
                     return
-
-                yield delta.content or ""
         except KeyboardInterrupt:
-            response.close()
+            if hasattr(response, "close"):
+                response.close()
 
     def handle(
         self,

@@ -8,14 +8,6 @@ from sgpt.providers.anthropic_provider import AnthropicProvider
 from sgpt.providers.base import ToolCallDelta
 
 
-@pytest.fixture(autouse=True)
-def _anthropic_api_key(monkeypatch):
-    """AnthropicProvider.__init__ reads ANTHROPIC_API_KEY via cfg.get,
-    which raises UsageError on an empty value. Provide a test key so the
-    provider can be constructed offline in unit tests."""
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
-
-
 def test_translate_tools_openai_to_anthropic():
     provider = AnthropicProvider()
     openai_tools = [
