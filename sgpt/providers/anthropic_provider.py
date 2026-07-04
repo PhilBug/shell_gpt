@@ -110,7 +110,7 @@ class AnthropicProvider:
         top_p: float,
         messages: List[Dict[str, Any]],
         functions: Optional[List[Dict[str, Any]]] = None,
-    ) -> Generator[str, None, None]:
+    ) -> Any:
         system_text, rest = self.split_system_message(messages)
         anthropic_messages = self.convert_history_tools(rest)
         kwargs: Dict[str, Any] = {
@@ -126,9 +126,10 @@ class AnthropicProvider:
         if tools:
             kwargs["tools"] = tools
 
-        response = self._client.messages.stream(**kwargs)
-        # parse_stream owns iteration and lifecycle of the stream.
-        yield from self.parse_stream(response)
+        # Return the raw MessageStreamManager; the handler owns iteration
+        # via parse_stream (mirrors how OpenAIProvider returns a chunk
+        # stream for the handler to walk).
+        return self._client.messages.stream(**kwargs)
 
     def parse_stream(
         self, response: Any
