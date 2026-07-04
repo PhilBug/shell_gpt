@@ -9,6 +9,19 @@ pip install shell-gpt
 ```
 By default, ShellGPT uses OpenAI's API and GPT-4 model. You'll need an API key, you can generate one [here](https://platform.openai.com/api-keys). You will be prompted for your key which will then be stored in `~/.config/shell_gpt/.sgptrc`. OpenAI API is not free of charge, please refer to the [OpenAI pricing](https://openai.com/pricing) for more information.
 
+### Using Anthropic (Claude)
+
+To use Anthropic's Claude models natively, set `PROVIDER=anthropic` and provide an Anthropic API key (get one [here](https://console.anthropic.com/settings/keys)):
+
+```shell
+export ANTHROPIC_API_KEY=your_anthropic_api_key
+export PROVIDER=anthropic
+export DEFAULT_MODEL=claude-sonnet-4-5-20250929
+sgpt "What is the fibonacci sequence"
+```
+
+You can also set these in your `~/.config/shell_gpt/.sgptrc` runtime config. Function calls (`--functions`) are supported with the Anthropic provider.
+
 > [!TIP]
 > Alternatively, you can run open-source models locally for free. This requires setting up your own LLM backend, such as [Ollama](https://github.com/ollama/ollama). To get ShellGPT working with Ollama, follow this detailed [guide](https://github.com/TheR1D/shell_gpt/wiki/Ollama)
 >
@@ -391,6 +404,12 @@ SHOW_FUNCTIONS_OUTPUT=false
 OPENAI_USE_FUNCTIONS=true
 # Enforce LiteLLM usage (for local LLMs).
 USE_LITELLM=false
+# Provider: "openai" (default) or "anthropic".
+PROVIDER=openai
+# Anthropic API key (also settable via ANTHROPIC_API_KEY env).
+ANTHROPIC_API_KEY=
+# Max output tokens per request when using the Anthropic provider.
+ANTHROPIC_MAX_TOKENS=4096
 # Control how markdown live rendering handles overflow when output exceeds terminal height.
 # Possible values: ellipsis, visible, crop
 MARKDOWN_LIVE_VERTICAL_OVERFLOW=ellipsis
