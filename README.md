@@ -416,6 +416,13 @@ ANTHROPIC_API_KEY=
 # set this to your model's max output: e.g. 128000 for Sonnet/Opus, 64000
 # for Haiku. See https://platform.claude.com/docs/en/about-claude/models/overview
 ANTHROPIC_MAX_TOKENS=4096
+# Anthropic base URL. Use "default" for the official API, or a URL for a
+# compatible gateway.
+ANTHROPIC_BASE_URL=default
+# Thinking mode for the Anthropic provider: "adaptive" (model decides when to
+# think, the default on Claude Sonnet 5 and Opus 4.7+) or "disabled" to turn
+# thinking off entirely. See "Controlling thinking" below.
+ANTHROPIC_THINKING=adaptive
 # Control how markdown live rendering handles overflow when output exceeds terminal height.
 # Possible values: ellipsis, visible, crop
 MARKDOWN_LIVE_VERTICAL_OVERFLOW=ellipsis
@@ -445,6 +452,16 @@ export ANTHROPIC_MAX_TOKENS=128000
 ```
 
 Source: [Anthropic — Models overview](https://platform.claude.com/docs/en/about-claude/models/overview).
+
+#### Controlling thinking (Anthropic)
+
+Claude Sonnet 5 and Opus 4.7+ run adaptive thinking by default on every request, which increases latency and token usage. To disable it:
+
+```shell
+export ANTHROPIC_THINKING=disabled
+```
+
+Set it back to `adaptive` (the default) to let the model decide when to think. On models that don't support the `thinking` field at all, ShellGPT automatically drops it and retries rather than failing the request.
 
 ### Configuration Examples
 
