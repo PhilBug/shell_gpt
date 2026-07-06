@@ -23,6 +23,16 @@ DEFAULT_CONFIG = {
     "CACHE_LENGTH": int(os.getenv("CHAT_CACHE_LENGTH", "100")),
     "REQUEST_TIMEOUT": int(os.getenv("REQUEST_TIMEOUT", "60")),
     "DEFAULT_MODEL": os.getenv("DEFAULT_MODEL", "gpt-5.4-mini"),
+    "PROVIDER": os.getenv("PROVIDER", "openai"),
+    "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", ""),
+    "ANTHROPIC_MAX_TOKENS": os.getenv("ANTHROPIC_MAX_TOKENS", "4096"),
+    # Anthropic base URL. Use "default" for the official Anthropic API, or a
+    # URL for a compatible gateway. Separate from API_BASE_URL (OpenAI).
+    "ANTHROPIC_BASE_URL": os.getenv("ANTHROPIC_BASE_URL", "default"),
+    # "adaptive" leaves thinking under the model's own default (e.g. always-on
+    # adaptive thinking on Claude Sonnet 5). Set to "disabled" to turn thinking
+    # off explicitly.
+    "ANTHROPIC_THINKING": os.getenv("ANTHROPIC_THINKING", "adaptive"),
     "DEFAULT_TEMPERATURE": os.getenv("DEFAULT_TEMPERATURE", 0.0),
     "DEFAULT_COLOR": os.getenv("DEFAULT_COLOR", "magenta"),
     "ROLE_STORAGE_PATH": os.getenv("ROLE_STORAGE_PATH", str(ROLE_STORAGE_PATH)),
@@ -61,10 +71,20 @@ class Config(dict):  # type: ignore
                 self._write()
         else:
             config_path.parent.mkdir(parents=True, exist_ok=True)
-            # Don't write API key to config file if it is in the environment.
-            if not defaults.get("OPENAI_API_KEY") and not os.getenv("OPENAI_API_KEY"):
-                __api_key = getpass(prompt="Please enter your OpenAI API key: ")
-                defaults["OPENAI_API_KEY"] = __api_key
+            provider = defaults.get("PROVIDER", "openai")
+            if provider == "anthropic":
+                if not defaults.get("ANTHROPIC_API_KEY") and not os.getenv(
+                    "ANTHROPIC_API_KEY"
+                ):
+                    __api_key = getpass(prompt="Please enter your Anthropic API key: ")
+                    defaults["ANTHROPIC_API_KEY"] = __api_key
+            else:
+                # Don't write API key to config file if it is in the environment.
+                if not defaults.get("OPENAI_API_KEY") and not os.getenv(
+                    "OPENAI_API_KEY"
+                ):
+                    __api_key = getpass(prompt="Please enter your OpenAI API key: ")
+                    defaults["OPENAI_API_KEY"] = __api_key
             super().__init__(**defaults)
             self._write()
 
@@ -88,8 +108,14 @@ class Config(dict):  # type: ignore
 
     def get(self, key: str) -> str:  # type: ignore
         # Prioritize environment variables over config file.
-        value = os.getenv(key) or super().get(key)
-        if not value:
+        value = os.getenv(key)
+        if value is None:
+            value = super().get(key)
+        # Note: a value of 0 / 0.0 / "" is valid (e.g. DEFAULT_TEMPERATURE=0.0);
+        # only a truly missing key (None) is an error. On the first-run path
+        # the dict holds typed defaults (floats/ints), so falsiness must not be
+        # treated as absence.
+        if value is None:
             raise UsageError(f"Missing config key: {key}")
         return value
 
